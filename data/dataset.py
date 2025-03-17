@@ -7,7 +7,7 @@ from torchvision import transforms
 import sys
 from os.path import dirname as dir
 sys.path.append(dir(sys.path[0]))
-from util import Const
+from util import Const, standard_label, prompt_generator
 
 def read_path_and_labels(csv_file_path, used_classes = None, phase = None):
     df = pd.read_csv(csv_file_path)
@@ -41,7 +41,7 @@ def prepare_data(dataset_list,
                  normalize = True, 
                  resize=(320,320), 
                  database_dir="D:\Lu\data_thesis",
-                 phase="train"):
+                 phase=None):
     database_dir = database_dir
     data_summary = pd.read_excel(os.path.join(database_dir,"dataset_summary.xlsx"))
     datasets = []
@@ -90,7 +90,6 @@ class GeneratedDataSet(torch.utils.data.Dataset):
     return {"image": image, "label": text}
 
 if __name__ == "__main__":
-  dataset = prepare_data(["CAPTIV8",
-               "Mark-data"], Const.Text_Annotation["polyp"])
+  dataset = prepare_data(["Galar-tech"], Const.Text_Annotation["technical"])
   print(len(dataset))
-  print(dataset[2]["image"].shape)
+  print(prompt_generator(standard_label(dataset[17000]["label"]), "an endoscopy image with "))

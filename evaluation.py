@@ -32,16 +32,15 @@ def get_fid_score(real_dataloader, fake_dataloader):
 
 
 if __name__ == "__main__":
-    dataset = prepare_data(["CAPTIV8", 
-                "Mark-data"], Const.Text_Annotation["polyp"], normalize=False, resize=(299,299))
+    dataset = prepare_data(Const.WCE_Datasets, Const.Text_Annotation["inflammation"], normalize=False, resize=(299,299))
 
     transform = transforms.Compose([
         transforms.Resize((299,299)),
         transforms.ToTensor(),
         ])
-    generated_data = GeneratedDataSet("output\combine_fake_data_25", "polyp",transform)
+    generated_data = GeneratedDataSet("output\inflammation_all\epoch_65", "inflammation",transform)
 
-    real_images_loader = DataLoader(dataset, batch_size=128, shuffle=False, drop_last=True)
+    real_images_loader = DataLoader(dataset, batch_size=256, shuffle=False, drop_last=True)
     fake_images_loader = DataLoader(generated_data, batch_size=8, shuffle=False, drop_last=True)
 
     print(get_kid_score(real_images_loader, fake_images_loader))

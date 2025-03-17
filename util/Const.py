@@ -25,6 +25,8 @@ Text_Annotation = {"polyp": ["polyp",
                              "polypoids", 
                              "polyp-like",
                              "pseudopolyp"],
+                    "non-polyp": ["non-polyp",
+                                  "normal"],
                     "inflammation": ["inflammation",
                                      "Inflammation",
                                      "inflammatory change",
@@ -36,7 +38,16 @@ Text_Annotation = {"polyp": ["polyp",
                     "bleeding": ["bleeding",
                                  "Bleeding",
                                  "blood_fresh",
-                                 "blood"]
+                                 "blood"],
+                    "bubbles":["bubbles"],
+                    "dirt": ["dirt"],
+                    "clean": ["clean"],
+                    "dirt_and_bubbles":["dirt_and_bubbles"],
+                    "technical": ["bubbles",
+                                  "dirt",
+                                  "clean",
+                                  "dirt_and_bubbles"]
+                    
                    }
 
 
