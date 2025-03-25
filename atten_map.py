@@ -13,14 +13,14 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 pipeline = StableDiffusionPipeline.from_pretrained(model_name)
 pipeline.to(device)
-fine_tuned_unet = UNet2DConditionModel.from_pretrained("checkpoints/galar_polyp_naive/epoch_30")
+fine_tuned_unet = UNet2DConditionModel.from_pretrained("checkpoints/galar_polyp_stage2/epoch_15")
 fine_tuned_unet.to(device)
 pipeline.unet = fine_tuned_unet
 
-prompt = 'An endoscopy image showing polyp'
+prompt = 'endoscopy image with no bubbles'
 gen = set_seed(42)  # for reproducibility
-# word_list = prompt.split(' ')
-word_list = ['polyp']
+word_list = prompt.split(' ')
+#word_list = ['polyp']
 with torch.no_grad():
     with trace(pipeline) as tc:
         out = pipeline(prompt, 

@@ -33,7 +33,7 @@ def train_stable_diffusion(dataset,
     pipeline.to("cuda")
     if fine_tune:
         pipeline.unet = UNet2DConditionModel.from_pretrained(fine_tune).to(device)
-    vae = pipeline.vae  # Variational Autoencoder
+    vae = pipeline.vae 
     
     #pipeline.scheduler = DDIMScheduler.from_config(pipeline.scheduler.config, num_train_timesteps = 2000)  # Adjust total diffusion steps
     tokenizer = pipeline.tokenizer
@@ -59,14 +59,15 @@ def train_stable_diffusion(dataset,
             if universal_prompt:
                 input_ids = tokenizer([universal_prompt]*batch_size, padding=True, truncation=True, return_tensors="pt")["input_ids"].to(device)
             elif generated_prompt:
-                standardized_label = [standard_label(label) for label in batch["label"]]
-                prompt = [prompt_generator(label, generated_prompt_template) for label in standardized_label]
+                standardized_labels = [standard_label(label) for label in batch["label"]]
+                section_names = [' '.join(section.split('_')) for section in batch["section"]]
+                prompt = [prompt_generator(label, section, generated_prompt_template) for label, section in zip(standardized_labels,section_names)]
                 input_ids = tokenizer(prompt, padding=True, truncation=True, return_tensors="pt")["input_ids"].to(device)
             else:
                 input_ids = tokenizer(batch["label"], padding=True, truncation=True, return_tensors="pt")["input_ids"].to(device)
 
             # Encode text
-            #print(prompt)
+            print(prompt)
             encoder_hidden_states = text_encoder(input_ids)["last_hidden_state"].to(device)
 
             # Encode images into latent space
@@ -91,7 +92,7 @@ def train_stable_diffusion(dataset,
             optimizer.step()
 
             progress_bar.set_postfix({"loss": loss.item()})
-            #wandb.log({"train loss":loss})
+        #wandb.log({"train loss":loss})
 
         # Save model checkpoint
         if (epoch + 1) % 3 == 0:
@@ -114,8 +115,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    dataset = prepare_data([ 
-                "Galar"], 
+    dataset = prepare_data(["Galar"], 
                             used_classes=None,
                             database_dir=args.database_dir)
     
@@ -123,9 +123,8 @@ if __name__ == "__main__":
 
     train_stable_diffusion(dataset, 
                            # universal_prompt="an endoscopy image with polyp", 
-                           generated_prompt_template = "endoscopy image in which ",
+                           generated_prompt_template = "endoscopy image",
                            check_points_dir= check_points_dir,
-
-                           fine_tune="checkpoints/bubbles_and_dirt/epoch_9",
+                           fine_tune="checkpoints/bubble_dirt_section/epoch_4",
                            epoch_num=args.epoch_num,
                            batch_size=args.batch_size)

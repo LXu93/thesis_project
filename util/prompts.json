@@ -1,22 +1,25 @@
 {
     "polyp": [
-        "polyp is observed",
-        "possible has a polyp",
-        "a polyp-like structure is seen",
-        "a polypoid projection is noted",
-        "likely shows a polyp",
-        "a possible polyp is present",
-        "a polypoid growth is detected",
-        "a mucosal outgrowth likely representing a polyp is seen",
-        "a polyp-like mucosal outgrowth is noted"
+        "in which polyp is observed",
+        "in which has a polyp",
+        "in which a polyp-like structure is seen",
+        "in which a polypoid projection is noted",
+        "in which likely shows a polyp",
+        "in which a possible polyp is present",
+        "in which a polypoid growth is detected",
+        "in which a mucosal outgrowth likely representing a polyp is seen",
+        "in which a polyp-like mucosal outgrowth is noted",
+        "with polyps",
+        "showing polyp"
     ],
     "non-polyp":[
-        "no polyp is observed",
-        "possibly no polyp",
-        "shows normal, no polyp",
-        "normal mucosa without polyp is observed",
-        "no polyp is seen",
-        "likely is normal"
+        "in which no polyp is observed",
+        "possibly without polyp",
+        "in which shows normal, no polyp",
+        "in which mucosa without polyp is observed",
+        "in which no polyp is seen",
+        "in which likely is normal",
+        "with no polyp"
     ],
     "blood": [
         "evidence of intraluminal blood is observed.",
@@ -223,36 +226,36 @@
         "the presence of mucosal erythema and swelling suggests an inflammatory process."
     ],
     "bubbles":[
-        "bubbles.",
-        "multiple bubbles.",
-        "possible bubbles.",
-        "possible bubbles, no dirt.",
-        "bubbles, no dirt.",
-        "bubbles, possible no dirt."
+        "with bubbles.",
+        "with multiple bubbles.",
+        "with possible bubbles.",
+        "with possible bubbles, no dirt.",
+        "with bubbles, no dirt.",
+        "with bubbles, possible no dirt."
     ],
     "dirt":[
-        "dirt.",
-        "possible dirt",
-        "dirt, no bubbles.",
-        "possible dirt, no bubbles.",
-        "dirt, possible no bubbles."
+        "with dirt.",
+        "with possible dirt",
+        "with dirt, no bubbles.",
+        "with possible dirt, no bubbles.",
+        "with dirt, possible no bubbles."
     ],
     "dirt_and_bubbles":[
-        "dirt and bubbles.",
-        "bubbles and dirt.",
-        "bubbles, dirt.",
-        "dirt, bubbles.",
-        "bubbles, possible dirt.",
-        "dirt, possible bubbles.",
-        "possible dirt and bubbles.",
-        "possible bubbles and dirt.",
-        "possible bubbles, possible dirt."
+        "with dirt and bubbles.",
+        "with bubbles and dirt.",
+        "with bubbles, dirt.",
+        "with dirt, bubbles.",
+        "with bubbles, possible dirt.",
+        "with dirt, possible bubbles.",
+        "with possible dirt and bubbles.",
+        "with possible bubbles and dirt.",
+        "with possible bubbles, possible dirt."
     ],
     "clean": [
-        "clear view.",
-        "possible clear view",
-        "clear view, no bubbles, no dirt.",
-        "clear view, no bubbles and dirt.",
-        "clear view, no bubbles, likely no dirt.",
-        "clear view, possible no bubbles, no dirt."]
+        "with clear view.",
+        "with possible clear view",
+        "with clear view, no bubbles, no dirt.",
+        "with clear view, no bubbles and dirt.",
+        "with clear view, no bubbles, likely no dirt.",
+        "with clear view, possible no bubbles, no dirt."]
 }

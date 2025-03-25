@@ -46,29 +46,17 @@ Text_Annotation = {"polyp": ["polyp",
                     "technical": ["bubbles",
                                   "dirt",
                                   "clean",
-                                  "dirt_and_bubbles"]
+                                  "dirt_and_bubbles"],
+                    "section": ["stomach",
+                                "small intestine",
+                                "colon"]
                     
                    }
 
 
-PREPROCESSOR = {
-    "general": transforms.Compose([
-                transforms.ToTensor(),               
-            ]),
-    "CAPTIV8": transforms.Compose([
-                transforms.CenterCrop((512,512)),
-                transforms.ToTensor(),               
-            ]),
-    "Mark-data": transforms.Compose([
-                transforms.CenterCrop((512,512)),    
-                transforms.ToTensor(),               
-            ]),
-    "SEE-AI": transforms.Compose([
-                transforms.CenterCrop((512,512)),    
-                transforms.ToTensor(),               
-            ]),
-    "KID2": transforms.Compose([
-                transforms.CenterCrop((320,320)),  
-                transforms.ToTensor(),               
-            ]),
+CROP = {
+    "CAPTIV8": (512,512),
+    "Mark-data": (512,512),
+    "SEE-AI": (512,512),
+    "KID2": (320,320),
 }
