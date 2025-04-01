@@ -10,6 +10,7 @@ from os.path import dirname as dir
 sys.path.append(dir(sys.path[0]))
 from util import Const, standard_label, prompt_generator
 
+
 def read_path_and_labels(csv_file_path, used_classes = None, phase = None):
     df = pd.read_csv(csv_file_path)
     if phase is not None:
@@ -37,7 +38,7 @@ class MyDataSet(torch.utils.data.Dataset):
   def __getitem__(self, idx):
     image = Image.open(self.image_path_list[idx])
     width, height = image.size
-    image_name = self.image_path_list[idx].split('\\')[-1]
+    image_name = os.path.basename(self.image_path_list[idx])
     label = self.label_list[idx]
     if self.section_list:
       section = self.section_list[idx]
@@ -45,7 +46,12 @@ class MyDataSet(torch.utils.data.Dataset):
       section = "unknown"
     if self.transform:
       image = self.transform(image)
-    return {"image": image, "label": label, "section": section, "name": image_name, "org_width": width, "org_height": height}
+    return {"image": image, 
+            "label": label, 
+            "section": section, 
+            "name": image_name, 
+            "org_width": width, 
+            "org_height": height}
   
 def prepare_data(dataset_list, 
                  used_classes = None, 
@@ -84,6 +90,67 @@ def prepare_data(dataset_list,
     dataset = ConcatDataset(datasets)
     return dataset
 
+class DataSetwithMask(torch.utils.data.Dataset):
+  @staticmethod
+  def generate_empty_mask(w, h):
+        return Image.new('L', (w,h))
+  def __init__(self, 
+               image_dir, 
+               mask_dir, 
+               label_csv, 
+               phase=None, 
+               need_mask=['polyp'], 
+               resize=None, 
+               image_transform=None, 
+               mask_transform=None):
+    super().__init__()
+    if not label_csv:
+       label_csv = os.path.join(image_dir,'labels_table.csv')
+    self.file_path_list, self.label_list, self.section_list = read_path_and_labels(label_csv, used_classes=None, phase=phase)
+    self.need_mask = need_mask
+    self.resize = resize
+    self.image_transform = image_transform
+    self.mask_transform = mask_transform
+
+
+    self.image_path_list = [os.path.join(image_dir,*file_path.split("\\")) for file_path in self.file_path_list]
+    self.mask_path_list = [os.path.join(mask_dir,*file_path.split("\\")) for file_path in self.file_path_list]
+
+  def __len__(self):
+    return len(self.image_path_list)
+
+  def __getitem__(self, idx):
+    image = Image.open(self.image_path_list[idx])
+    width, height = image.size
+    image_name = os.path.basename(self.image_path_list[idx])
+    label = self.label_list[idx]
+    
+    if label in self.need_mask:
+      mask = Image.open(self.mask_path_list[idx])
+    else:
+      mask = DataSetwithMask.generate_empty_mask(width, height)
+    
+    if self.section_list:
+      section = self.section_list[idx]
+    else:
+      section = "unknown"
+
+    if self.resize:
+       resize_transform = transforms.Resize(self.resize, interpolation=InterpolationMode.BILINEAR)
+       image = resize_transform(image)
+       mask = resize_transform(mask)
+    if self.image_transform:
+      image = self.image_transform(image)
+    if self.mask_transform:
+      mask = self.mask_transform(mask)
+    return {"image": image, 
+            "label": label, 
+            "mask": mask,
+            "section": section, 
+            "name": image_name, 
+            "org_width": width, 
+            "org_height": height}
+  
 class GeneratedDataSet(torch.utils.data.Dataset):
   def __init__(self, image_dir, label, transform=None):
     super().__init__()
@@ -107,11 +174,24 @@ class GeneratedDataSet(torch.utils.data.Dataset):
     return {"image": image, "label": text}
 
 if __name__ == "__main__":
-  dataset = prepare_data(["Galar-tech"], None)#Const.Text_Annotation["technical"])
-  print(len(dataset))
+  import matplotlib.pyplot as plt
+  
+  #dataset = prepare_data(["Galar-tech"], None)#Const.Text_Annotation["technical"])
+  #print(len(dataset))
   #dataloader = DataLoader(dataset, batch_size=8)
   #batch = next(iter(dataloader))
-  print(os.path.join(dataset[0]['section'],dataset[0]['label'], dataset[0]['name']))
-  print(dataset[0]["org_size"])
-  print(dataset[0]["image"].shape)
+  #print(os.path.join(dataset[0]['section'],dataset[0]['label'], dataset[0]['name']))
+  #print(dataset[0]["name"])
+  #print(dataset[0]["image"].shape)
+  dataset = DataSetwithMask(image_dir="D:\Lu\data_thesis\Galar_custo", 
+               mask_dir="D:\Lu\data_thesis\galar_CAM", 
+               label_csv=None, 
+               phase=None, 
+               need_mask=['polyp'], 
+               resize=(320,320), 
+               image_transform=None, 
+               mask_transform=None)
+  print(dataset[29000]['label'])
+  plt.imshow(dataset[29000]['mask'], cmap='gray')
+  plt.show()
   #print(prompt_generator(standard_label(dataset[17000]["label"]), ' '.join(dataset[17000]["section"].split('_')), "an endoscopy image"))
