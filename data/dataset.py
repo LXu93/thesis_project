@@ -36,6 +36,8 @@ class MyDataSet(torch.utils.data.Dataset):
 
   def __getitem__(self, idx):
     image = Image.open(self.image_path_list[idx])
+    width, height = image.size
+    image_name = self.image_path_list[idx].split('\\')[-1]
     label = self.label_list[idx]
     if self.section_list:
       section = self.section_list[idx]
@@ -43,7 +45,7 @@ class MyDataSet(torch.utils.data.Dataset):
       section = "unknown"
     if self.transform:
       image = self.transform(image)
-    return {"image": image, "label": label, "section": section}
+    return {"image": image, "label": label, "section": section, "name": image_name, "org_width": width, "org_height": height}
   
 def prepare_data(dataset_list, 
                  used_classes = None, 
@@ -107,6 +109,9 @@ class GeneratedDataSet(torch.utils.data.Dataset):
 if __name__ == "__main__":
   dataset = prepare_data(["Galar-tech"], None)#Const.Text_Annotation["technical"])
   print(len(dataset))
-  dataloader = DataLoader(dataset, batch_size=8)
-  batch = next(iter(dataloader))
-  print(prompt_generator(standard_label(dataset[17000]["label"]), ' '.join(dataset[17000]["section"].split('_')), "an endoscopy image"))
+  #dataloader = DataLoader(dataset, batch_size=8)
+  #batch = next(iter(dataloader))
+  print(os.path.join(dataset[0]['section'],dataset[0]['label'], dataset[0]['name']))
+  print(dataset[0]["org_size"])
+  print(dataset[0]["image"].shape)
+  #print(prompt_generator(standard_label(dataset[17000]["label"]), ' '.join(dataset[17000]["section"].split('_')), "an endoscopy image"))

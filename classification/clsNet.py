@@ -109,9 +109,10 @@ class ViTClsNet(nn.Module):
 def train(device, 
           train_set, 
           val_set,
-          run_id = "classification",
+          #run_id = "classification",
           classes = ["non-polyp", "polyp"],
-          model_name="ViT", 
+          model_name="ViT",
+          lora = False, 
           lr = 5e-6,
           batch_size_train = 64,
           batch_size_test = 128,
@@ -127,18 +128,28 @@ def train(device,
     
     if model_name == 'ViT':
         model = ViTClsNet(num_classes, fine_tune=True, freeze_num=freeze_num, drop_out=drop_out).to(device)
-        config = LoraConfig(
-            r=8,  # Low-rank dimension (small r = less overfitting)
-            lora_alpha=32,  # Scaling factor
-            lora_dropout=0.1,  # Dropout for LoRA adaptation
-            target_modules=["self_attention"],  # Apply LoRA only to attention layers
-        )
+        if lora:
+            config = LoraConfig(
+                r=8,  # Low-rank dimension (small r = less overfitting)
+                lora_alpha=32,  # Scaling factor
+                lora_dropout=0.1,  # Dropout for LoRA adaptation
+                target_modules=["self_attention"],  # Apply LoRA only to attention layers
+            )
 
-        # Apply LoRA to Model
-        model = get_peft_model(model, config)
-        #model.print_trainable_parameters() 
+            # Apply LoRA to Model
+            model = get_peft_model(model, config).to(device)
+            #model.print_trainable_parameters() 
     if model_name == 'ResNet':
         model = ResNetClsNet(num_classes, fine_tune=True, freeze_num=freeze_num, drop_out=drop_out).to(device)
+        if lora:
+            config = LoraConfig(
+                inference_mode=False,
+                r=32,
+                lora_alpha=16,
+                lora_dropout=0.1,
+                target_modules=["conv1", "conv2","conv3"]
+            )
+            model = get_peft_model(model, config).to(device)
     
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=weight_decay)
@@ -163,6 +174,7 @@ def train(device,
         mean_train_loss = 0.0
         pbar = tqdm(train_loader)
         for batch in pbar:
+            
             labels = [standard_label(label) for label in batch["label"]]
             labels = [classes.index(target) for target in labels]
             labels = torch.tensor(labels,dtype=torch.long, device=device)
@@ -179,43 +191,41 @@ def train(device,
         writer.add_scalar("Loss/Train Loss", mean_train_loss, epoch)
         writer.flush()
         #wandb.log({"train loss":mean_train_loss})
-        
-        
-        model.eval()
-        if (iteration)%50 == 0:
+        if (epoch+1)%1 == 0:
+            model.eval()
             val_loss = 0.0
             with torch.no_grad():
-                for batch in val_loader:
-                    val_labels = [standard_label(label) for label in batch["label"]]
+                for val_batch in val_loader:
+                    val_labels = [standard_label(label) for label in val_batch["label"]]
                     val_labels = [classes.index(target) for target in val_labels]
                     val_labels = torch.tensor(val_labels,dtype=torch.long, device=device)
-                    val_images= batch["image"].to(device)
+                    val_images= val_batch["image"].to(device)
             
                     pre = model(val_images)
                     
                     batch_loss = criterion(pre, val_labels)
                     val_loss = val_loss + batch_loss.item()
             val_loss = val_loss/len(val_loader)
-            writer.add_scalar("Loss/Val Loss", val_loss, iteration)
+            writer.add_scalar("Loss/Val Loss", val_loss, epoch)
             writer.flush()
             #wandb.log({"Test Loss": val_loss})
             if val_loss<best_loss:
                 best_loss = val_loss
-                if model_name == 'ViT':
+                if lora:
                     model.save_pretrained(os.path.join(ckp_dir, "best"))
                 else:
                     torch.save(model.state_dict(), os.path.join(ckp_dir, "best.pth"))
-                
-        if (epoch+1)%10 == 0:
-            if model_name == 'ViT':
+        if (epoch+1)%1 == 0:
+            if lora:
                 model.save_pretrained(os.path.join(ckp_dir, f"epoch_{epoch+1}"))
             else:
                 torch.save(model.state_dict(), os.path.join(ckp_dir,f"epoch_{epoch+1}.pth"))
 
 if __name__ == '__main__':
-    model = ViTClsNet(2, fine_tune=True, freeze_num=0) 
-    for name, module in model.named_modules():
-        print(name)
+    model = ResNetClsNet(2, fine_tune=True, freeze_num=0) 
+    print(model)
+    #for name, module in model.named_modules():
+    #    print(name)
     #total_params = sum(p.numel() for p in model.parameters())
     #trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 

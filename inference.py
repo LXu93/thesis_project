@@ -41,7 +41,7 @@ def inference_diffusion(prompt,
         pbar = tqdm(range(1,image_nums+1))
         for i in pbar:
             if pathology:
-                prompt = prompt_generator(pathology, section="rondam")
+                prompt = prompt_generator(pathology, section="unknown")
             if random_gs:
                 guidance_scale = random.randrange(random_gs[0],random_gs[1])
             prompt_embeds = compel_proc(prompt)
@@ -52,12 +52,12 @@ def inference_diffusion(prompt,
 
 if __name__ == "__main__":
     inference_diffusion(image_nums = 100,
-                        prompt="endoscopy image with polyp, with no bubbles",
-                        pathology="polyp", 
+                        prompt="endoscopy image in stomach, with a polyp",
+                        #pathology="polyp", 
                         num_inference_steps= 100,
                         guidance_scale = 10,
-                        #random_gs=(6,16),
+                        random_gs=(6,16),
                         #gen=torch.manual_seed(42),
                         trained_model_dir="checkpoints/polyp_section/epoch_7",
-                        output_dir="output/polyp_section/polyp/epoch_7")
+                        output_dir="output/polyp_section/polyp/stomach")
 

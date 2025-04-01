@@ -1,10 +1,10 @@
 import os
 import argparse
 import torch
-from diffusers import StableDiffusionPipeline, DDIMScheduler, UNet2DConditionModel
+from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, UNet2DConditionModel
 from torch.utils.data import DataLoader
 from data.dataset import *
-#import wandb
+import wandb
 from tqdm import tqdm
 from util import Const, prompt_generator, standard_label
 
@@ -16,7 +16,7 @@ def train_stable_diffusion(dataset,
                            fine_tune=None,
                            epoch_num = 20,
                            batch_size = 8,
-                           lr = 5e-6,
+                           lr = 1e-5,
                            save_safetensors = True):
     # Parameters
     model_name = "runwayml/stable-diffusion-v1-5" # Pretrained model checkpoint
@@ -26,13 +26,32 @@ def train_stable_diffusion(dataset,
     learning_rate = lr
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    #wandb.init(project="SD1.5-WCE-inflammation")
-    #wandb.config = {"learning_rate": learning_rate, "epochs": num_epochs, "batch_size": batch_size, "train_timestep":1000}
-
-    pipeline = StableDiffusionPipeline.from_pretrained(model_name)
-    pipeline.to("cuda")
+    wandb.init(project="SD1.5-controlnet-depth")
+    wandb.config = {"learning_rate": learning_rate, "epochs": num_epochs, "batch_size": batch_size, "train_timestep":1000}
+    # Load the pretrained UNet from SD 1.5
     if fine_tune:
-        pipeline.unet = UNet2DConditionModel.from_pretrained(fine_tune).to(device)
+        pretrained_unet = UNet2DConditionModel.from_pretrained(fine_tune).to(device)
+    else:
+        pretrained_unet = UNet2DConditionModel.from_pretrained(model_name, subfolder="unet")
+
+    # Initialize controlnet with same config
+    controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth")
+
+    # if convert controlnet to 1 channel
+    '''
+    controlnet.controlnet_cond_embedding.conv_in = torch.nn.Conv2d(
+        in_channels=1, 
+        out_channels=controlnet.controlnet_cond_embedding.conv_in.out_channels,
+        kernel_size=3,
+        padding=1
+    )
+    torch.nn.init.kaiming_uniform_(controlnet.controlnet_cond_embedding.conv_in.weight)
+    '''
+
+    pipeline = StableDiffusionControlNetPipeline.from_pretrained(model_name, controlnet = controlnet)
+    if fine_tune:
+        pipeline.unet = pretrained_unet
+    pipeline.to("cuda")
     vae = pipeline.vae 
     
     #pipeline.scheduler = DDIMScheduler.from_config(pipeline.scheduler.config, num_train_timesteps = 2000)  # Adjust total diffusion steps
@@ -46,16 +65,21 @@ def train_stable_diffusion(dataset,
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
     # Optimizer
-    optimizer = torch.optim.AdamW(denoise_net.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(controlnet.parameters(), lr=learning_rate)
 
     # Training loop
-    denoise_net.train()
+    for param in denoise_net.parameters():
+        param.requires_grad = False
+    denoise_net.eval()
+    controlnet.train()
     if not os.path.isdir(check_points_dir):
         os.makedirs(check_points_dir)
     for epoch in range(num_epochs):
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}")
         for batch in progress_bar:
             pixel_values = batch["image"].to(device)
+            controlnet_image = batch["mask"].to(device)
+            controlnet_image = controlnet_image.repeat(1, 3, 1, 1)
             if universal_prompt:
                 input_ids = tokenizer([universal_prompt]*batch_size, padding=True, truncation=True, return_tensors="pt")["input_ids"].to(device)
             elif generated_prompt:
@@ -67,7 +91,6 @@ def train_stable_diffusion(dataset,
                 input_ids = tokenizer(batch["label"], padding=True, truncation=True, return_tensors="pt")["input_ids"].to(device)
 
             # Encode text
-            #print(prompt)
             encoder_hidden_states = text_encoder(input_ids)["last_hidden_state"].to(device)
 
             # Encode images into latent space
@@ -81,8 +104,25 @@ def train_stable_diffusion(dataset,
             noisy_latents = pipeline.scheduler.add_noise(latents, noise, timesteps)
 
             # Predict noise
-            noise_pred = denoise_net(noisy_latents, timesteps, encoder_hidden_states).sample
+            down_block_res_samples, mid_block_res_sample = controlnet(
+                    noisy_latents,
+                    timesteps,
+                    encoder_hidden_states=encoder_hidden_states,
+                    controlnet_cond=controlnet_image,
+                    return_dict=False,
+                )
 
+                # Predict the noise residual
+            noise_pred = denoise_net(
+                noisy_latents,
+                timesteps,
+                encoder_hidden_states=encoder_hidden_states,
+                down_block_additional_residuals=[
+                    sample for sample in down_block_res_samples
+                ],
+                mid_block_additional_residual=mid_block_res_sample,
+                return_dict=False,
+            )[0]
             # Compute loss
             loss = torch.nn.functional.mse_loss(noise_pred, noise)
 
@@ -92,14 +132,16 @@ def train_stable_diffusion(dataset,
             optimizer.step()
 
             progress_bar.set_postfix({"loss": loss.item()})
-        #wandb.log({"train loss":loss})
+            wandb.log({"train loss":loss})
 
         # Save model checkpoint
-        if (epoch + 1) % 3 == 0:
+        if (epoch + 1) % 1 == 0:
             if save_safetensors:
-                denoise_net.save_pretrained(os.path.join(check_points_dir, f"epoch_{epoch+1}"))
+                #denoise_net.save_pretrained(os.path.join(check_points_dir, 'unet',f"epoch_{epoch+1}"))
+                controlnet.save_pretrained(os.path.join(check_points_dir,f"epoch_{epoch+1}"))
+
             else:
-                torch.save(denoise_net.state_dict(), os.path.join(check_points_dir, f"epoch_{epoch+1}.pth"))
+                torch.save(controlnet.state_dict(), os.path.join(check_points_dir, f"epoch_{epoch+1}.pth"))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -110,14 +152,23 @@ if __name__ == "__main__":
     parser.add_argument('--uni_prompt', type=str)
     parser.add_argument('--finetune', default=None)
     parser.add_argument('--epoch_num', type=int, default=30)
-    parser.add_argument('--batch_size', type=int, default=8)
+    parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--phase', default=None)
 
     args = parser.parse_args()
 
-    dataset = prepare_data(["Galar"], 
-                            used_classes=None,
-                            database_dir=args.database_dir)
+    imaeg_transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize([0.5], [0.5])])
+    mask_transform = transforms.Compose([transforms.ToTensor()])
+
+    dataset = DataSetwithMask(image_dir="D:\Lu\data_thesis\Galar_custo", #"/cluster/home/luxu/data_thesis/Galar_custo", 
+               mask_dir= "D:\Lu\data_thesis\galar_CAM", #"/cluster/home/luxu/data_thesis/galar_CAM", 
+               label_csv=None, 
+               phase='train', 
+               need_mask=['polyp'], 
+               resize=(320,320), 
+               image_transform=imaeg_transform, 
+               mask_transform=mask_transform)
     
     check_points_dir = os.path.join(os.path.abspath(os.getcwd()),"checkpoints",args.id)
 
@@ -125,6 +176,6 @@ if __name__ == "__main__":
                            # universal_prompt="an endoscopy image with polyp", 
                            generated_prompt_template = "endoscopy image",
                            check_points_dir= check_points_dir,
-                           #fine_tune="checkpoints/bubble_dirt_section/epoch_4",
+                           fine_tune="checkpoints/polyp_section/epoch_6",
                            epoch_num=args.epoch_num,
                            batch_size=args.batch_size)
